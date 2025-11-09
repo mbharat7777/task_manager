@@ -9,6 +9,7 @@ const CreatePage = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [status, setStatus] = useState('pending');
+  const [subtasks, setSubtasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -23,11 +24,15 @@ const CreatePage = () => {
 
     setLoading(true);
     try {
-      await api.post("/notes", {
+      // Only send non-empty subtasks
+      const payload = {
         title,
         content,
         status,
-      });
+        subtasks: (subtasks || []).map((s) => ({ title: s.title.trim(), completed: !!s.completed })).filter(s => s.title),
+      };
+
+      await api.post("/notes", payload);
 
       toast.success("Task created successfully!");
       navigate("/");
@@ -97,6 +102,44 @@ const CreatePage = () => {
                     <option value="in-progress">In Progress</option>
                     <option value="completed">Completed</option>
                   </select>
+                </div>
+
+                <div className="form-control mb-4">
+                  <label className="label">
+                    <span className="label-text">Subtasks (optional)</span>
+                  </label>
+                  <div className="space-y-2">
+                    {(subtasks || []).map((s, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          className="input input-bordered w-full"
+                          placeholder={`Subtask ${idx + 1}`}
+                          value={s.title}
+                          onChange={(e) => {
+                            const copy = [...subtasks];
+                            copy[idx] = { ...copy[idx], title: e.target.value };
+                            setSubtasks(copy);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-ghost text-error"
+                          onClick={() => setSubtasks((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => setSubtasks((prev) => [...(prev || []), { title: '', completed: false }])}
+                    >
+                      Add Subtask
+                    </button>
+                  </div>
                 </div>
 
                 <div className="card-actions justify-end">

@@ -11,6 +11,7 @@ const NoteDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('pending');
+  const [subtasks, setSubtasks] = useState([]);
 
   const navigate = useNavigate();
 
@@ -22,6 +23,7 @@ const NoteDetailPage = () => {
         const res = await api.get(`/notes/${id}`);
         setNote(res.data);
       setStatus(res.data.status || 'pending');
+      setSubtasks(res.data.subtasks || []);
       } catch (error) {
         console.log("Error in fetching task", error);
         toast.error("Failed to fetch the task");
@@ -55,7 +57,12 @@ const NoteDetailPage = () => {
     setSaving(true);
 
     try {
-      await api.put(`/notes/${id}`, { ...note, status });
+      const payload = {
+        ...note,
+        status,
+        subtasks: (subtasks || []).map(s => ({ title: s.title?.trim() || '', completed: !!s.completed })).filter(s => s.title),
+      };
+      await api.put(`/notes/${id}`, payload);
       toast.success("task updated successfully");
       navigate("/");
     } catch (error) {
@@ -129,6 +136,52 @@ const NoteDetailPage = () => {
                   <option value="in-progress">In Progress</option>
                   <option value="completed">Completed</option>
                 </select>
+              </div>
+
+              <div className="form-control mb-4">
+                <label className="label">
+                  <span className="label-text">Subtasks</span>
+                </label>
+                <div className="space-y-2">
+                  {(subtasks || []).map((s, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        type="checkbox"
+                        checked={!!s.completed}
+                        onChange={() => {
+                          const copy = [...subtasks];
+                          copy[idx] = { ...copy[idx], completed: !copy[idx].completed };
+                          setSubtasks(copy);
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="input input-bordered w-full"
+                        value={s.title}
+                        onChange={(e) => {
+                          const copy = [...subtasks];
+                          copy[idx] = { ...copy[idx], title: e.target.value };
+                          setSubtasks(copy);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-ghost text-error"
+                        onClick={() => setSubtasks((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => setSubtasks((prev) => [...(prev || []), { title: '', completed: false }])}
+                  >
+                    Add Subtask
+                  </button>
+                </div>
               </div>
 
               <div className="card-actions justify-end">

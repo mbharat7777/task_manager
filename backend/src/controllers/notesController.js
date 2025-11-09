@@ -24,7 +24,7 @@ export async function getNoteById(req, res) {
 
 export async function createNote(req, res) {
   try {
-    const { title, content, status } = req.body;
+    const { title, content, status, subtasks } = req.body;
 
     // basic validation
     if (!title || !content) return res.status(400).json({ message: 'Title and content are required' });
@@ -35,11 +35,20 @@ export async function createNote(req, res) {
       return res.status(400).json({ message: 'Invalid status value' });
     }
 
+    // Validate subtasks shape if provided
+    let sanitizedSubtasks = [];
+    if (Array.isArray(subtasks)) {
+      sanitizedSubtasks = subtasks
+        .map((s) => ({ title: (s.title || '').toString().trim(), completed: !!s.completed }))
+        .filter((s) => s.title.length > 0);
+    }
+
     const note = new Note({
       title,
       content,
       status: status || 'pending',
-      user: req.user.id
+      subtasks: sanitizedSubtasks,
+      user: req.user.id,
     });
 
     const savedNote = await note.save();
@@ -52,7 +61,7 @@ export async function createNote(req, res) {
 
 export async function updateNote(req, res) {
   try {
-    const { title, content, status } = req.body;
+    const { title, content, status, subtasks } = req.body;
     const note = await Note.findOne({ _id: req.params.id, user: req.user.id });
     
     if (!note) {
@@ -68,6 +77,15 @@ export async function updateNote(req, res) {
     note.title = title ?? note.title;
     note.content = content ?? note.content;
     if (status) note.status = status;
+
+    // If subtasks provided, validate and replace
+    if (Array.isArray(subtasks)) {
+      const sanitizedSubtasks = subtasks
+        .map((s) => ({ title: (s.title || '').toString().trim(), completed: !!s.completed }))
+        .filter((s) => s.title.length > 0);
+      note.subtasks = sanitizedSubtasks;
+    }
+
     const updatedNote = await note.save();
 
     res.status(200).json(updatedNote);

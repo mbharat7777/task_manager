@@ -18,6 +18,20 @@ const statusIcons = {
 };
 
 const NoteCard = ({ note, setNotes }) => {
+  // compute progress percent: prefer subtasks if present
+  const computeProgress = (note) => {
+    const subs = note.subtasks || [];
+    if (subs.length) {
+      const completed = subs.filter((s) => s.completed).length;
+      return Math.round((completed / subs.length) * 100);
+    }
+    // fallback to status mapping
+    if (note.status === 'completed') return 100;
+    if (note.status === 'in-progress') return 50;
+    return 0;
+  };
+
+  const progress = computeProgress(note);
   const handleDelete = async (e, id) => {
     e.preventDefault(); // get rid of the navigation behaviour
 
@@ -79,6 +93,18 @@ const NoteCard = ({ note, setNotes }) => {
             {React.createElement(statusIcons[note.status || 'pending'], { className: 'size-3' })}
             {note.status || 'pending'}
           </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-3">
+          <div className="w-full h-2 bg-base-200 rounded overflow-hidden">
+            <div
+              className="h-2 bg-primary"
+              style={{ width: `${progress}%` }}
+              aria-valuenow={progress}
+            />
+          </div>
+          <div className="text-xs text-base-content/60 mt-1">{progress}% complete</div>
         </div>
 
         <div className="card-actions justify-between items-center mt-4">
