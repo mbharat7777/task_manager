@@ -8,11 +8,18 @@ import api from "../lib/axios";
 const CreatePage = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [status, setStatus] = useState('pending');
   const [subtasks, setSubtasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  const deriveStatus = (subs) => {
+    if (!Array.isArray(subs) || subs.length === 0) return 'pending';
+    const completed = subs.filter((s) => s.completed).length;
+    if (completed === subs.length) return 'completed';
+    if (completed > 0) return 'in-progress';
+    return 'pending';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,12 +31,15 @@ const CreatePage = () => {
 
     setLoading(true);
     try {
-      // Only send non-empty subtasks
+      const sanitizedSubtasks = (subtasks || [])
+        .map((s) => ({ title: (s.title || '').trim(), completed: !!s.completed }))
+        .filter((s) => s.title.length > 0);
+
       const payload = {
         title,
         content,
-        status,
-        subtasks: (subtasks || []).map((s) => ({ title: s.title.trim(), completed: !!s.completed })).filter(s => s.title),
+        status: deriveStatus(sanitizedSubtasks),
+        subtasks: sanitizedSubtasks,
       };
 
       await api.post("/notes", payload);
@@ -91,17 +101,11 @@ const CreatePage = () => {
 
                 <div className="form-control mb-4">
                   <label className="label">
-                    <span className="label-text">Status</span>
+                    <span className="label-text">Status (derived from subtasks)</span>
                   </label>
-                  <select
-                    className="select select-bordered w-full"
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                  </select>
+                  <div className="badge badge-ghost">
+                    {deriveStatus((subtasks || []).filter(s => (s.title || '').trim().length > 0))}
+                  </div>
                 </div>
 
                 <div className="form-control mb-4">

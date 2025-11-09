@@ -32,6 +32,17 @@ const NoteCard = ({ note, setNotes }) => {
   };
 
   const progress = computeProgress(note);
+  const deriveStatus = (note) => {
+    const subs = note.subtasks || [];
+    if (subs.length) {
+      const completed = subs.filter((s) => s.completed).length;
+      if (completed === subs.length) return 'completed';
+      if (completed > 0) return 'in-progress';
+      return 'pending';
+    }
+    return note.status || 'pending';
+  };
+  const displayStatus = deriveStatus(note);
   const handleDelete = async (e, id) => {
     e.preventDefault(); // get rid of the navigation behaviour
 
@@ -47,41 +58,16 @@ const NoteCard = ({ note, setNotes }) => {
     }
   };
 
-  const handleStatusChange = async (e) => {
-    e.preventDefault(); // prevent navigation
-    const newStatus = e.target.value;
-    try {
-      const response = await api.put(`/notes/${note._id}`, {
-        ...note,
-        status: newStatus
-      });
-      setNotes(prev => prev.map(n => n._id === note._id ? response.data : n));
-      toast.success("Status updated");
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast.error("Failed to update status");
-    }
-  };
-
   return (
     <div className={`card bg-base-100 hover:shadow-lg transition-all duration-200 border-t-4 border-solid ${
-      (note.status || 'pending') === 'completed' ? 'border-success' :
-      (note.status || 'pending') === 'in-progress' ? 'border-info' :
+      (displayStatus === 'completed') ? 'border-success' :
+      (displayStatus === 'in-progress') ? 'border-info' :
       'border-warning'
     }`}>
       <div className="card-body">
         <div className="flex justify-between items-start">
           <h3 className="card-title text-base-content">{note.title}</h3>
-          <select
-            className={`select select-sm select-bordered ${statusColors[note.status || 'pending']}`}
-            value={note.status || 'pending'}
-            onChange={handleStatusChange}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <option value="pending">Pending</option>
-            <option value="in-progress">In Progress</option>
-            <option value="completed">Completed</option>
-          </select>
+          <div className={`badge ${statusColors[displayStatus]} text-sm`}>{displayStatus}</div>
         </div>
         
         <Link to={`/note/${note._id}`} className="hover:underline">
@@ -89,9 +75,9 @@ const NoteCard = ({ note, setNotes }) => {
         </Link>
 
         <div className="flex items-center gap-2 mt-2">
-          <span className={`badge ${statusColors[note.status || 'pending']} gap-1`}>
-            {React.createElement(statusIcons[note.status || 'pending'], { className: 'size-3' })}
-            {note.status || 'pending'}
+          <span className={`badge ${statusColors[displayStatus]} gap-1`}>
+            {React.createElement(statusIcons[displayStatus], { className: 'size-3' })}
+            {displayStatus}
           </span>
         </div>
 

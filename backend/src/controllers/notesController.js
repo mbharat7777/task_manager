@@ -43,10 +43,21 @@ export async function createNote(req, res) {
         .filter((s) => s.title.length > 0);
     }
 
+    // Derive status from subtasks when subtasks exist
+    const deriveStatusFromSubtasks = (subs, fallback) => {
+      if (!Array.isArray(subs) || subs.length === 0) return fallback || 'pending';
+      const completedCount = subs.filter((s) => s.completed).length;
+      if (completedCount === subs.length) return 'completed';
+      if (completedCount > 0) return 'in-progress';
+      return 'pending';
+    };
+
+    const derivedStatus = deriveStatusFromSubtasks(sanitizedSubtasks, status || 'pending');
+
     const note = new Note({
       title,
       content,
-      status: status || 'pending',
+      status: derivedStatus,
       subtasks: sanitizedSubtasks,
       user: req.user.id,
     });
@@ -76,14 +87,32 @@ export async function updateNote(req, res) {
 
     note.title = title ?? note.title;
     note.content = content ?? note.content;
-    if (status) note.status = status;
 
-    // If subtasks provided, validate and replace
+    // If subtasks provided, validate and replace and derive new status
     if (Array.isArray(subtasks)) {
       const sanitizedSubtasks = subtasks
         .map((s) => ({ title: (s.title || '').toString().trim(), completed: !!s.completed }))
         .filter((s) => s.title.length > 0);
       note.subtasks = sanitizedSubtasks;
+
+      // derive status from subtasks
+      const completedCount = sanitizedSubtasks.filter((s) => s.completed).length;
+      if (sanitizedSubtasks.length === 0) {
+        // keep provided status or existing
+        if (status) note.status = status;
+      } else if (completedCount === sanitizedSubtasks.length) {
+        note.status = 'completed';
+      } else if (completedCount > 0) {
+        note.status = 'in-progress';
+      } else {
+        note.status = 'pending';
+      }
+    } else {
+      // If subtasks not provided, allow updating status directly (if valid)
+      const allowedStatuses = ['pending', 'in-progress', 'completed'];
+      if (status && allowedStatuses.includes(status)) {
+        note.status = status;
+      }
     }
 
     const updatedNote = await note.save();

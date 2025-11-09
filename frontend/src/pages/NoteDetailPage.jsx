@@ -10,7 +10,6 @@ const NoteDetailPage = () => {
   const [note, setNote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState('pending');
   const [subtasks, setSubtasks] = useState([]);
 
   const navigate = useNavigate();
@@ -20,10 +19,9 @@ const NoteDetailPage = () => {
   useEffect(() => {
     const fetchNote = async () => {
       try {
-        const res = await api.get(`/notes/${id}`);
-        setNote(res.data);
-      setStatus(res.data.status || 'pending');
-      setSubtasks(res.data.subtasks || []);
+          const res = await api.get(`/notes/${id}`);
+          setNote(res.data);
+          setSubtasks(res.data.subtasks || []);
       } catch (error) {
         console.log("Error in fetching task", error);
         toast.error("Failed to fetch the task");
@@ -48,7 +46,15 @@ const NoteDetailPage = () => {
     }
   };
 
-  const handleSave = async () => {
+    const deriveStatus = (subs) => {
+      if (!Array.isArray(subs) || subs.length === 0) return 'pending';
+      const completed = subs.filter((s) => s.completed).length;
+      if (completed === subs.length) return 'completed';
+      if (completed > 0) return 'in-progress';
+      return 'pending';
+    };
+
+    const handleSave = async () => {
     if (!note.title.trim() || !note.content.trim()) {
       toast.error("Please add a title or content");
       return;
@@ -57,10 +63,11 @@ const NoteDetailPage = () => {
     setSaving(true);
 
     try {
+      const sanitizedSubtasks = (subtasks || []).map(s => ({ title: s.title?.trim() || '', completed: !!s.completed })).filter(s => s.title);
       const payload = {
         ...note,
-        status,
-        subtasks: (subtasks || []).map(s => ({ title: s.title?.trim() || '', completed: !!s.completed })).filter(s => s.title),
+        status: deriveStatus(sanitizedSubtasks),
+        subtasks: sanitizedSubtasks,
       };
       await api.put(`/notes/${id}`, payload);
       toast.success("task updated successfully");
@@ -125,17 +132,11 @@ const NoteDetailPage = () => {
 
               <div className="form-control mb-4">
                 <label className="label">
-                  <span className="label-text">Status</span>
+                  <span className="label-text">Status (derived from subtasks)</span>
                 </label>
-                <select
-                  className="select select-bordered w-full"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                </select>
+                <div className="badge badge-ghost">
+                  {deriveStatus((subtasks || []).filter(s => (s.title || '').trim().length > 0))}
+                </div>
               </div>
 
               <div className="form-control mb-4">

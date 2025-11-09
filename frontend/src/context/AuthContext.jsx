@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from '../lib/axios';
-
-const AuthContext = createContext();
+import { AuthContext } from './authCore';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -91,10 +90,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+// Note: the `useAuth` hook is exported from `authCore.js` to keep this file
+// focused on exporting the provider component only (helps React Fast Refresh).
